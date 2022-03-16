@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="85402979-7251-4d5c-bc6e-1c93e91d14b7" >
+		<http:listener-connection protocol="HTTPS" host="0.0.0.0" port="8082" >
+			<tls:context >
+				<tls:key-store type="jks" path="mule.jks" keyPassword="password" password="password" />
+			</tls:context>
+		</http:listener-connection>
+	</http:listener-config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="8f2dc197-0fc5-43c8-a674-81f849db126b" >
+		<salesforce:basic-connection username="nikhilagupta98@gmail.com" password="Nikhila@98" securityToken="4VzpnVBLldfRdOhUfOYhM6pi2" />
+	</salesforce:sfdc-config>
+	<flow name="medtronicsFlow" doc:id="7200923f-a4e6-4156-a738-6a5b3ce19c31" >
+		<http:listener doc:name="Listener" doc:id="4c5e8a45-fc0d-4797-87d7-d32b4332b39b" config-ref="HTTP_Listener_config" path="/med/{id}"/>
+		<salesforce:query doc:name="Query" doc:id="c4c34765-f1aa-4f43-85a0-22382cb27999" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query ><![CDATA[select Name,UserId__c,Stream__c from medtronics__c where UserId__c=':id']]></salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[{
+	id:attributes.uriParams.'id'
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<ee:transform doc:name="Transform Message" doc:id="2bf396e6-f6f2-45ff-b235-e4caead16e53" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map {
+	Name : $.Name,
+	UserId :$.UserId__c,
+	Stream : $.Stream__c
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="medtronicsFlow2" doc:id="8adb30b7-23b1-46c4-8f14-4e9462d2df68" >
+		<http:listener doc:name="Listener" doc:id="06550bd4-1288-42de-b572-9f4ba7e41760" config-ref="HTTP_Listener_config" path="/med" allowedMethods="GET"/>
+		<salesforce:query-all doc:name="Query all" doc:id="6b54afff-78c4-4fde-a426-30dd97352a1c" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query ><![CDATA[select Name,UserId__c,Stream__c from medtronics__c]]></salesforce:salesforce-query>
+		</salesforce:query-all>
+		<ee:transform doc:name="Transform Message" doc:id="410868b0-af26-4643-ac2c-c7a203245cc5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="medtronicsFlow1" doc:id="f1e411e0-34ca-43fb-80a7-067e2c37886f" >
+		<http:listener doc:name="Listener" doc:id="29dda047-96df-4b94-b8c3-6e77956daffa" config-ref="HTTP_Listener_config" path="/post"/>
+		<ee:transform doc:name="Transform Message" doc:id="9f26014c-4a4d-46a5-be7a-055267dbf6ac" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+[{
+	Name: payload.Name,
+	Stream__c: payload.Stream,
+}]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:create doc:name="Create" doc:id="78748dc9-1b24-41ea-ab93-7d744e6da5e4" config-ref="Salesforce_Config" type="medtronics__c"/>
+		<ee:transform doc:name="Transform Message" doc:id="a0406cfd-1632-49fb-9334-979e89db223e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message:"data inserted successfully"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="medtronicsFlow3" doc:id="a792346e-a766-4d83-b7d1-0120c8e4f652">
+		<http:listener doc:name="Listener" doc:id="c2e324f3-4afc-4eaf-9b59-9510cf34cabb" config-ref="HTTP_Listener_config" path="/delete/{id}" />
+		<salesforce:query doc:name="Query" doc:id="96c1801a-aa3f-4e23-830c-8b40cb75be35" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query><![CDATA[select Name,UserId__c,Stream__c from medtronics__c where Name=':Name']]></salesforce:salesforce-query>
+			<salesforce:parameters><![CDATA[#[output application/java
+---
+{
+	Name : attributes.queryParams.Name
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<ee:transform doc:name="Transform Message" doc:id="b1c4a1bf-f281-44ba-93d4-7132157d7853">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload map {
+	Name: $.Name,
+	Stream__c: $.Stream,
+	UserId__c: $.UserId	
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:delete doc:name="Delete" doc:id="3cdb06d0-8c2d-45bf-af6d-15a1b7e0d341" config-ref="Salesforce_Config">
+			<salesforce:ids><![CDATA[#[payload.Id]]]></salesforce:ids>
+		</salesforce:delete>
+		<ee:transform doc:name="Transform Message" doc:id="913a07c1-ed84-4d7f-b3f2-26a4e50b8d62">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
